@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Capacitaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="data.js"></script>
+<style>
+  :root{
+    --bg:#F5F3EE;
+    --panel:#FFFFFF;
+    --ink:#1E2422;
+    --ink-soft:#5B6560;
+    --line:#DEDAD0;
+    --safety:#F2B705;
+    --safety-dark:#C99400;
+    --teal:#2B6777;
+    --ok:#3F8F5C;
+    --ok-bg:#E7F3EC;
+    --warn:#B4790A;
+    --warn-bg:#FBF0DC;
+    --danger:#B23A2E;
+    --danger-bg:#FBE9E6;
+    --muted:#8B8B82;
+    --muted-bg:#EFEDE6;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Barlow Condensed', sans-serif;
+    letter-spacing:0.01em;
+  }
+
+  /* ---------- Header ---------- */
+  header.app-header{
+    background:var(--ink);
+    color:#F5F3EE;
+    padding:22px 28px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.app-header::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:6px;
+    background:repeating-linear-gradient(135deg,
+      var(--safety) 0px, var(--safety) 16px,
+      var(--ink) 16px, var(--ink) 32px);
+    opacity:0.9;
+  }
+  .header-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    max-width:1220px;
+    margin:0 auto;
+  }
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand h1{
+    font-size:30px;
+    font-weight:700;
+    margin:0;
+    line-height:1;
+    color:#fff;
+  }
+  .brand span.tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--safety);
+    border:1px solid var(--safety-dark);
+    padding:3px 8px;
+    border-radius:999px;
+  }
+  .header-sub{
+    color:#C7CDC8;
+    font-size:14px;
+    margin-top:4px;
+  }
+  .file-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    font-weight:500;
+    padding:10px 16px;
+    border-radius:8px;
+    border:1px solid transparent;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    transition:transform .08s ease, background .15s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--safety); color:#211C08;}
+  .btn-primary:hover{background:#e0aa04;}
+  .btn-ghost{background:transparent; border-color:#5B655F; color:#F0EEE7;}
+  .btn-ghost:hover{background:rgba(255,255,255,0.08);}
+  input[type=file]{display:none;}
+
+  /* ---------- Stats ---------- */
+  .stats-bar{
+    max-width:1220px;
+    margin:-18px auto 0;
+    padding:0 28px;
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:12px;
+    position:relative;
+    z-index:2;
+  }
+  .stat-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    box-shadow:0 2px 0 rgba(30,36,34,0.03);
+  }
+  .stat-card .num{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:32px;
+    font-weight:700;
+    line-height:1;
+  }
+  .stat-card .lbl{font-size:12.5px; color:var(--ink-soft); margin-top:4px;}
+  .stat-card.ok .num{color:var(--ok);}
+  .stat-card.warn .num{color:var(--warn);}
+  .stat-card.danger .num{color:var(--danger);}
+
+  /* ---------- Dashboard ---------- */
+  .dashboard{
+    max-width:1220px;
+    margin:18px auto 0;
+    padding:0 28px;
+  }
+  .dashboard-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .dashboard-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 20px 20px;
+  }
+  .dashboard-title{
+    font-size:19px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .dashboard-subtitle{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+  .dashboard-body{
+    display:flex;
+    align-items:center;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .pie-chart{
+    width:150px; height:150px;
+    border-radius:50%;
+    flex:0 0 auto;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pie-hole{
+    width:88px; height:88px;
+    background:var(--panel);
+    border-radius:50%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+  }
+  .pie-hole span{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:22px; font-weight:700; line-height:1;
+  }
+  .pie-hole small{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+  .legend{display:flex; flex-direction:column; gap:8px; min-width:180px; flex:1;}
+  .legend-row{
+    display:grid;
+    grid-template-columns:11px 1fr auto auto;
+    align-items:center;
+    gap:8px;
+    font-size:13.5px;
+  }
+  .legend-dot{width:10px; height:10px; border-radius:3px;}
+  .legend-label{color:var(--ink);}
+  .legend-count{font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+  .legend-pct{font-family:'IBM Plex Mono', monospace; font-size:12.5px; font-weight:600; min-width:42px; text-align:right;}
+
+  /* ---------- Filters ---------- */
+  .filters{
+    max-width:1220px;
+    margin:18px auto 0;
+    padding:0 28px;
+  }
+  .filters-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+    display:grid;
+    grid-template-columns:1.4fr 1fr 1fr 1fr;
+    gap:12px;
+    align-items:end;
+  }
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:9px 11px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:#FCFBF8;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{
+    outline:2px solid var(--teal);
+    outline-offset:1px;
+  }
+
+  /* ---------- Results ---------- */
+  .results-wrap{
+    max-width:1220px;
+    margin:20px auto 60px;
+    padding:0 28px;
+  }
+  .results-meta{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-bottom:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .results-meta a{color:var(--teal); cursor:pointer; text-decoration:underline;}
+
+  .employee-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(420px, 1fr));
+    gap:14px;
+  }
+  .emp-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .emp-head{
+    padding:14px 16px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .emp-name{font-size:17px; font-weight:600; margin:0 0 2px;}
+  .emp-meta{
+    font-size:13px;
+    color:var(--ink-soft);
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 12px;
+  }
+  .emp-meta b{color:var(--ink); font-weight:600;}
+  .legajo-chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    background:var(--muted-bg);
+    color:var(--ink-soft);
+    padding:2px 7px;
+    border-radius:5px;
+  }
+
+  .emp-tables{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .emp-tables > div:first-child{border-right:1px solid var(--line);}
+  .table-block-title{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    font-weight:600;
+    color:var(--ink-soft);
+    padding:10px 14px 4px;
+  }
+  table.train-table{width:100%; border-collapse:collapse; font-size:13px;}
+  table.train-table td{padding:6px 14px; border-top:1px solid #EFEDE6; vertical-align:middle;}
+  table.train-table tr:first-child td{border-top:none;}
+  .cap-name{font-weight:500; white-space:nowrap;}
+  .status-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:3px 9px;
+    border-radius:999px;
+    font-size:11.5px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .status-pill .dot{width:7px; height:7px; border-radius:50%;}
+  .st-vigente{background:var(--ok-bg); color:var(--ok);}
+  .st-vigente .dot{background:var(--ok);}
+  .st-programado{background:var(--warn-bg); color:var(--warn);}
+  .st-programado .dot{background:var(--warn);}
+  .st-sinprogramar{background:var(--danger-bg); color:var(--danger);}
+  .st-sinprogramar .dot{background:var(--danger);}
+  .st-novigente{background:#E3EEF0; color:var(--teal);}
+  .st-novigente .dot{background:var(--teal);}
+  .st-na{background:var(--muted-bg); color:var(--muted);}
+  .st-na .dot{background:var(--muted);}
+
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft);}
+  .empty-state h3{margin-bottom:6px; color:var(--ink);}
+
+  footer{text-align:center; font-size:12px; color:var(--ink-soft); padding:20px;}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(20,24,22,0.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--panel); border-radius:12px; max-width:500px; width:100%; padding:22px 24px;}
+  .modal h3{margin-top:0;}
+  .modal ul{padding-left:18px; font-size:14px; color:var(--ink-soft);}
+  .modal code{background:var(--muted-bg); padding:1px 5px; border-radius:4px; font-size:12.5px;}
+  .modal-actions{margin-top:16px; text-align:right;}
+
+  @media (max-width: 860px){
+    .dashboard-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width: 720px){
+    .stats-bar{grid-template-columns:repeat(2,1fr);}
+    .filters-panel{grid-template-columns:1fr 1fr;}
+    header.app-header{padding:18px 16px 18px;}
+    .stats-bar, .filters, .results-wrap, .dashboard{padding-left:16px; padding-right:16px;}
+    .emp-tables{grid-template-columns:1fr;}
+    .emp-tables > div:first-child{border-right:none; border-bottom:1px solid var(--line);}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-row">
+    <div>
+      <div class="brand">
+        <h1>Control de Capacitaciones</h1>
+        <span class="tag" id="sourceTag">demo</span>
+      </div>
+      <div class="header-sub">Trabajos en caliente · Espacio confinado · Trabajo en altura · LOTO — Capacitación y Revisión</div>
+    </div>
+    <div class="file-actions">
+      <label class="btn btn-primary" for="fileInput">Cargar Excel (Base1)</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+      <button class="btn btn-ghost" id="helpBtn" type="button">¿Cómo funciona?</button>
+    </div>
+  </div>
+</header>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="dashboard">
+  <div class="dashboard-grid">
+    <div class="dashboard-panel">
+      <h2 class="dashboard-title">Capacitación</h2>
+      <p class="dashboard-subtitle">Colaboradores (legajos únicos) según su peor estado de capacitación</p>
+      <div class="dashboard-body" id="dashboardCap"></div>
+    </div>
+    <div class="dashboard-panel">
+      <h2 class="dashboard-title">Revisión</h2>
+      <p class="dashboard-subtitle">Colaboradores (legajos únicos) según su peor estado de revisión</p>
+      <div class="dashboard-body" id="dashboardRev"></div>
+    </div>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="filters-panel">
+    <div class="field">
+      <label for="qInput">Buscar (legajo o nombre)</label>
+      <input type="text" id="qInput" placeholder="Ej: 10023894 o Rossi">
+    </div>
+    <div class="field">
+      <label for="panaderiaSelect">Panadería</label>
+      <select id="panaderiaSelect"><option value="">Todas</option></select>
+    </div>
+    <div class="field">
+      <label for="sectorSelect">Sector</label>
+      <select id="sectorSelect"><option value="">Todos</option></select>
+    </div>
+    <div class="field">
+      <label for="estadoSelect">Estado (capacitación o revisión)</label>
+      <select id="estadoSelect">
+        <option value="">Todos</option>
+        <option value="SIN_PROGRAMAR">Con algo sin programar</option>
+        <option value="PROGRAMADO">Con algo programado</option>
+        <option value="VIGENTE">Con algo vigente</option>
+        <option value="NO_APLICA">Con algo no aplica</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="results-wrap">
+  <div class="results-meta">
+    <span id="resultsCount"></span>
+    <a id="clearFilters">Limpiar filtros</a>
+  </div>
+  <div class="employee-grid" id="employeeGrid"></div>
+</div>
+
+<footer>Datos cargados en el navegador — no se envían a ningún servidor.</footer>
+
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <h3>Cómo usar esta herramienta</h3>
+    <ul>
+      <li>Tocá <b>"Cargar Excel (Base1)"</b> y elegí tu archivo. Se lee la hoja <code>Base1</code> (o la primera hoja si no existe una con ese nombre).</li>
+      <li>Columnas esperadas: <code>PANADERIA</code>, <code>SECTOR</code>, <code>LEGAJO</code>, <code>NOMBRE Y APELLIDO</code>, <code>Capacitacion</code>, <code>Capacitacion.Estado</code>, <code>Revision</code>, <code>Revision.Estado</code>.</li>
+      <li>Cada colaborador tiene 4 tipos de riesgo (Trabajos en caliente, Espacio confinado, Trabajo en altura, LOTO), cada uno con su propio estado de <b>Capacitación</b> y de <b>Revisión</b> posterior.</li>
+      <li>Cada estado puede ser: <b>Sin programar</b>, <b>Programado</b>, <b>Vigente</b> o <b>No aplica</b>.</li>
+      <li>Buscá por número de legajo o nombre, y filtrá por panadería, sector o estado.</li>
+      <li>Los datos quedan guardados en este navegador (no se suben a internet) para que no tengas que volver a cargarlos cada vez.</li>
+    </ul>
+    <div class="modal-actions"><button class="btn btn-primary" id="closeHelp">Entendido</button></div>
+  </div>
+</div>
+
+<script>
+const RISK_TYPES = ["Trabajos en caliente", "Espacio confinado", "Trabajo en altura", "LOTO"];
+
+const CAP_KEY_MAP = {
+  "T.Caliente.Capacitacion": "Trabajos en caliente",
+  "Confinado.Capacitacion": "Espacio confinado",
+  "Altura.Capacitacion": "Trabajo en altura",
+  "Loto.Capacitacion": "LOTO"
+};
+const REV_KEY_MAP = {
+  "Caliente.Revision": "Trabajos en caliente",
+  "Confinado.Revision": "Espacio confinado",
+  "Altura.Revision": "Trabajo en altura",
+  "Loto.Revision": "LOTO"
+};
+
+const STORAGE_KEY = "capacitaciones_base1_v1";
+
+let rawRows = [];
+let employees = [];
+
+// ---------- Helpers ----------
+function norm(v){ return (v === undefined || v === null) ? "" : String(v).trim(); }
+function normUpper(v){ return norm(v).toUpperCase(); }
+
+function statusKey(estado){
+  const e = normUpper(estado);
+  if (e === "VIGENTE") return "VIGENTE";
+  if (e === "PROGRAMADO") return "PROGRAMADO";
+  if (e === "SIN PROGRAMAR") return "SIN_PROGRAMAR";
+  if (e === "N/A" || e === "") return "NO_APLICA";
+  return "NO_VIGENTE";
+}
+const STATUS_META = {
+  VIGENTE:        { label: "Vigente",       cls: "st-vigente",     color: "var(--ok)" },
+  PROGRAMADO:     { label: "Programado",    cls: "st-programado",  color: "var(--warn)" },
+  SIN_PROGRAMAR:  { label: "Sin programar", cls: "st-sinprogramar",color: "var(--danger)" },
+  NO_VIGENTE:     { label: "No vigente",    cls: "st-novigente",   color: "var(--teal)" },
+  NO_APLICA:      { label: "No aplica",     cls: "st-na",          color: "var(--muted)" }
+};
+function statusClass(estado){ return STATUS_META[statusKey(estado)].cls; }
+function statusLabel(estado){ return STATUS_META[statusKey(estado)].label; }
+
+// ---------- Build employees from raw rows ----------
+// Cada fila cruza un tipo de Capacitacion con un tipo de Revision (cross-join).
+// El estado de cada tipo es constante para el empleado, así que lo deduplicamos.
+function buildEmployees(rows){
+  const map = new Map();
+  rows.forEach(row => {
+    const legajo = norm(row["LEGAJO"]);
+    const nombre = norm(row["NOMBRE Y APELLIDO"]);
+    const panaderia = norm(row["PANADERIA"]);
+    const sector = norm(row["SECTOR"]);
+    const key = (legajo || "SL") + "|" + nombre + "|" + panaderia + "|" + sector;
+
+    if (!map.has(key)){
+      map.set(key, {
+        legajo: legajo || "(sin legajo)",
+        nombre: nombre || "(sin nombre)",
+        panaderia, sector,
+        capacitaciones: {},
+        revisiones: {}
+      });
+    }
+    const emp = map.get(key);
+
+    const capRaw = norm(row["Capacitacion"]);
+    const capType = CAP_KEY_MAP[capRaw] || capRaw;
+    if (capType){
+      emp.capacitaciones[capType] = norm(row["Capacitacion.Estado"]);
+    }
+
+    const revRaw = norm(row["Revision"]);
+    const revType = REV_KEY_MAP[revRaw] || revRaw;
+    if (revType){
+      emp.revisiones[revType] = norm(row["Revision.Estado"]);
+    }
+  });
+  return Array.from(map.values()).sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+// ---------- Populate filter dropdowns ----------
+function populateFilters(){
+  const panaderiaSelect = document.getElementById("panaderiaSelect");
+  const sectorSelect = document.getElementById("sectorSelect");
+  const panaderias = Array.from(new Set(employees.map(e => e.panaderia).filter(Boolean))).sort();
+  const sectores = Array.from(new Set(employees.map(e => e.sector).filter(Boolean))).sort();
+
+  panaderiaSelect.innerHTML = '<option value="">Todas</option>' +
+    panaderias.map(p => `<option value="${p}">${p}</option>`).join("");
+  sectorSelect.innerHTML = '<option value="">Todos</option>' +
+    sectores.map(s => `<option value="${s}">${s}</option>`).join("");
+}
+
+// ---------- Stats ----------
+// Prioridad para consolidar los 4 riesgos en UN estado por legajo (gana el peor).
+const STATUS_PRIORITY = ["SIN_PROGRAMAR", "PROGRAMADO", "NO_VIGENTE", "VIGENTE", "NO_APLICA"];
+
+// Agrupa los empleados por número de legajo (un legajo = una persona, aunque
+// aparezca en más de una fila / sector).
+function employeesByLegajo(){
+  const map = new Map();
+  employees.forEach(emp => {
+    const key = emp.legajo;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(emp);
+  });
+  return map;
+}
+
+// Estado consolidado de un legajo para 'capacitaciones' o 'revisiones'.
+function legajoStatus(emps, field){
+  let best = null;
+  emps.forEach(emp => {
+    RISK_TYPES.forEach(t => {
+      const estado = emp[field][t];
+      if (estado === undefined) return;
+      const k = statusKey(estado);
+      if (best === null || STATUS_PRIORITY.indexOf(k) < STATUS_PRIORITY.indexOf(best)) best = k;
+    });
+  });
+  return best;
+}
+
+// Cuenta PERSONAS (legajos únicos), no registros.
+function computeCounts(field){
+  const counts = { VIGENTE: 0, PROGRAMADO: 0, SIN_PROGRAMAR: 0, NO_VIGENTE: 0, NO_APLICA: 0 };
+  employeesByLegajo().forEach(emps => {
+    const k = legajoStatus(emps, field);
+    if (k) counts[k]++;
+  });
+  return counts;
+}
+
+function renderStats(){
+  const total = employeesByLegajo().size;
+  const capCounts = computeCounts('capacitaciones');
+  const revCounts = computeCounts('revisiones');
+  let alDia = 0;
+  employeesByLegajo().forEach(emps => {
+    const c = legajoStatus(emps, 'capacitaciones');
+    const r = legajoStatus(emps, 'revisiones');
+    const ok = s => s === null || s === "VIGENTE" || s === "NO_APLICA";
+    if (ok(c) && ok(r)) alDia++;
+  });
+  const bar = document.getElementById("statsBar");
+  bar.innerHTML = `
+    <div class="stat-card"><div class="num">${total}</div><div class="lbl">Colaboradores (legajos únicos)</div></div>
+    <div class="stat-card danger"><div class="num">${capCounts.SIN_PROGRAMAR}</div><div class="lbl">Colaboradores con capacitación sin programar</div></div>
+    <div class="stat-card warn"><div class="num">${revCounts.SIN_PROGRAMAR}</div><div class="lbl">Colaboradores con revisión sin programar</div></div>
+    <div class="stat-card ok"><div class="num">${alDia}</div><div class="lbl">Colaboradores al día (capacitación + revisión)</div></div>
+  `;
+}
+
+// ---------- Dashboard (gráficos de torta) ----------
+function renderPie(containerId, counts){
+  const order = ["VIGENTE","PROGRAMADO","SIN_PROGRAMAR","NO_VIGENTE","NO_APLICA"];
+  const total = order.reduce((s,k) => s + counts[k], 0);
+  const el = document.getElementById(containerId);
+
+  if (total === 0){
+    el.innerHTML = `<div class="empty-state"><h3>Sin datos</h3><p>Cargá un Excel para ver el gráfico.</p></div>`;
+    return;
+  }
+
+  let acc = 0;
+  const gradientParts = order.map(key => {
+    const meta = STATUS_META[key];
+    const pct = (counts[key] / total) * 100;
+    const start = acc;
+    acc += pct;
+    return `${meta.color} ${start}% ${acc}%`;
+  });
+  const gradient = `conic-gradient(${gradientParts.join(", ")})`;
+
+  const legendRows = order.map(key => {
+    const meta = STATUS_META[key];
+    const count = counts[key];
+    const pct = total ? Math.round((count / total) * 1000) / 10 : 0;
+    return `<div class="legend-row">
+      <span class="legend-dot" style="background:${meta.color}"></span>
+      <span class="legend-label">${meta.label}</span>
+      <span class="legend-count">${count}</span>
+      <span class="legend-pct">${pct}%</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="pie-chart" style="background:${gradient}"><div class="pie-hole"><span>${total}</span><small>legajos</small></div></div>
+    <div class="legend">${legendRows}</div>
+  `;
+}
+
+function renderDashboard(){
+  renderPie("dashboardCap", computeCounts('capacitaciones'));
+  renderPie("dashboardRev", computeCounts('revisiones'));
+}
+
+// ---------- Filtering + render ----------
+function currentFilters(){
+  return {
+    q: norm(document.getElementById("qInput").value).toLowerCase(),
+    panaderia: document.getElementById("panaderiaSelect").value,
+    sector: document.getElementById("sectorSelect").value,
+    estado: document.getElementById("estadoSelect").value
+  };
+}
+
+function employeeMatches(emp, f){
+  if (f.panaderia && emp.panaderia !== f.panaderia) return false;
+  if (f.sector && emp.sector !== f.sector) return false;
+  if (f.q){
+    const hay = (emp.legajo + " " + emp.nombre).toLowerCase();
+    if (!hay.includes(f.q)) return false;
+  }
+  if (f.estado){
+    const capKeys = RISK_TYPES.map(t => emp.capacitaciones[t] !== undefined ? statusKey(emp.capacitaciones[t]) : null);
+    const revKeys = RISK_TYPES.map(t => emp.revisiones[t] !== undefined ? statusKey(emp.revisiones[t]) : null);
+    const all = capKeys.concat(revKeys);
+    if (!all.includes(f.estado)) return false;
+  }
+  return true;
+}
+
+function renderResults(){
+  const f = currentFilters();
+  const filtered = employees.filter(e => employeeMatches(e, f));
+  const grid = document.getElementById("employeeGrid");
+  const countEl = document.getElementById("resultsCount");
+
+  countEl.textContent = `${filtered.length} colaborador${filtered.length === 1 ? '' : 'es'} encontrado${filtered.length === 1 ? '' : 's'}`;
+
+  if (filtered.length === 0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <h3>Sin resultados</h3>
+      <p>Probá con otro legajo, nombre o filtro.</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(emp => {
+    const capRows = RISK_TYPES.map(t => {
+      const estado = emp.capacitaciones[t];
+      if (estado === undefined) return "";
+      return `<tr><td class="cap-name">${t}</td><td><span class="status-pill ${statusClass(estado)}"><span class="dot"></span>${statusLabel(estado)}</span></td></tr>`;
+    }).join("");
+
+    const revRows = RISK_TYPES.map(t => {
+      const estado = emp.revisiones[t];
+      if (estado === undefined) return "";
+      return `<tr><td class="cap-name">${t}</td><td><span class="status-pill ${statusClass(estado)}"><span class="dot"></span>${statusLabel(estado)}</span></td></tr>`;
+    }).join("");
+
+    return `<div class="emp-card">
+      <div class="emp-head">
+        <p class="emp-name">${emp.nombre}</p>
+        <div class="emp-meta">
+          <span class="legajo-chip">Legajo ${emp.legajo}</span>
+          <span><b>${emp.panaderia || '—'}</b></span>
+          <span>${emp.sector || '—'}</span>
+        </div>
+      </div>
+      <div class="emp-tables">
+        <div>
+          <div class="table-block-title">Capacitación</div>
+          <table class="train-table"><tbody>${capRows}</tbody></table>
+        </div>
+        <div>
+          <div class="table-block-title">Revisión</div>
+          <table class="train-table"><tbody>${revRows}</tbody></table>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function refreshAll(){
+  employees = buildEmployees(rawRows);
+  populateFilters();
+  renderStats();
+  renderDashboard();
+  renderResults();
+}
+
+// ---------- Data loading ----------
+function loadDemoData(){
+  rawRows = (window.DEMO_BASE_DATA || []);
+  document.getElementById("sourceTag").textContent = "demo";
+  refreshAll();
+}
+
+function loadFromRows(rows, sourceLabel){
+  rawRows = rows;
+  document.getElementById("sourceTag").textContent = sourceLabel;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch(e){ /* ignore quota errors */ }
+  refreshAll();
+}
+
+function tryLoadFromStorage(){
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored){
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length){
+        rawRows = parsed;
+        document.getElementById("sourceTag").textContent = "excel cargado";
+        refreshAll();
+        return true;
+      }
+    }
+  } catch(e){ /* ignore */ }
+  return false;
+}
+
+document.getElementById("fileInput").addEventListener("change", function(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type: "array"});
+      const sheetName = wb.SheetNames.includes("Base1") ? "Base1" : wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval: "", raw: false});
+      if (!rows.length){
+        alert("No se encontraron filas en la hoja \"" + sheetName + "\".");
+        return;
+      }
+      loadFromRows(rows, file.name);
+    } catch(err){
+      alert("No se pudo leer el archivo. Verificá que sea un .xlsx válido.\n" + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ---------- Filter event bindings ----------
+["qInput"].forEach(id => document.getElementById(id).addEventListener("input", renderResults));
+["panaderiaSelect","sectorSelect","estadoSelect"].forEach(id =>
+  document.getElementById(id).addEventListener("change", renderResults)
+);
+document.getElementById("clearFilters").addEventListener("click", function(){
+  document.getElementById("qInput").value = "";
+  document.getElementById("panaderiaSelect").value = "";
+  document.getElementById("sectorSelect").value = "";
+  document.getElementById("estadoSelect").value = "";
+  renderResults();
+});
+
+// ---------- Help modal ----------
+const helpModal = document.getElementById("helpModal");
+document.getElementById("helpBtn").addEventListener("click", () => helpModal.classList.add("open"));
+document.getElementById("closeHelp").addEventListener("click", () => helpModal.classList.remove("open"));
+helpModal.addEventListener("click", (e) => { if (e.target === helpModal) helpModal.classList.remove("open"); });
+
+// ---------- Init ----------
+if (!tryLoadFromStorage()){
+  loadDemoData();
+}
+</script>
+</body>
+</html>
